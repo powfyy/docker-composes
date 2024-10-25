@@ -1,0 +1,10 @@
+version: "3.8"
+services:
+  memcached:
+    image: memcached
+    ports:
+      - "11211:11211"
+    command:
+      - --conn-limit=1024
+      - --memory-limit=64
+      - --threads=4
