@@ -1,0 +1,48 @@
+## БАЗОВАЯ НАСТРОЙКА КОНФИГА ПЕРЕД ЗАПУСКОМ docker compose
+### источник мануала https://matrix.org/docs/older/understanding-synapse-hosting/
+
+### для корректной работы в /etc/hosts задал кастомный домен mydomain.com
+
+### генерация конфига synapse
+### в src указывается название volume для сервиса synapse из docker-compose. Следует помнить что к названию volume
+### добавляется префикс в виде названия папки, в которой лежит docker-compose. В примере это matrixsynapse.
+docker run -it --rm --mount type=volume,src=matrixsynapse_synapse_data,dst=/data -e SYNAPSE_SERVER_NAME=mydomain.com -e SYNAPSE_REPORT_STATS=no matrixdotorg/synapse:v1.128.0 generate
+
+### после выполнения команды сгенерировались несколько файлов в volume "matrixsynapse_synapse_data".
+### необходимо отредактировать файл homeserver.yaml который лежит в 
+### /var/lib/docker/volumes/matrixsynapse_synapse_data/_data
+### уточнить путь можно следующей командой
+docker volume inspect matrixsynapse_synapse_data --format '{{ .Mountpoint }}'
+
+### открытие конфига
+sudo nano /var/lib/docker/volumes/matrixsynapse_synapse_data/_data/homeserver.yaml
+
+### описание опций конфига тут https://matrix-org.github.io/synapse/latest/usage/configuration/index.html
+### по умолчанию конфиг настроен на базу sqlite3. Необходимо переключить на postgres. Для этого обновим свойство
+### database до следующего вида
+database:
+  name: psycopg2
+  txn_limit: 10000
+  args:
+    user: <db_user>
+    password: <db_password>
+    database: <db_name>
+    host: <db_container_name>
+    port: 5432
+    cp_min: 5
+    cp_max: 10
+    
+### Теперь запускаем docker compose. Traefik редиректит на страницу synapse по адресу mydomain.com:8008. 
+### Traefik dashboard доступен по адресу mydomain.com:7070.
+### При необходимости можно убрать Traefik, прокинув порты synapse напрямую "8008:8008".
+
+### Далее нужно зарегистрировать пользователя.
+### Заходим в контейнер synapse
+docker exec -it synapse /bin/bash
+
+### выполняем регистрацию с ссылкой на файл конфиг и указанием адреса
+### подробнее про команду регистрации тут 
+### https://manpages.debian.org/testing/matrix-synapse/register_new_matrix_user.1.en.html
+register_new_matrix_user -c /data/homeserver.yaml http://localhost:8008
+
+### вводим логин пароль, выдаем админ права при необходимости

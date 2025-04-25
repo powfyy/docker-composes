@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  traefik:
+    image: traefik:v3.3.6
+    container_name: synapse_traefik
+    command:
+      - --api.insecure=true
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --entrypoints.web.address=:80
+    ports:
+      - "8008:80"
+      - "7070:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+
+  synapse_db:
+    image: docker.io/postgres:17
+    container_name: synapse_db
+    environment:
+      - POSTGRES_USER=sadmin
+      - POSTGRES_PASSWORD=sadmin
+      - POSTGRES_DB=synapse_db
+      - POSTGRES_INITDB_ARGS=--encoding=UTF-8 --lc-collate=C --lc-ctype=C
+    volumes:
+      - synapse_db_data:/var/lib/postgresql/data
+
+  synapse:
+    image: docker.io/matrixdotorg/synapse:v1.128.0
+    container_name: synapse
+    environment:
+      - SYNAPSE_CONFIG_PATH=/data/homeserver.yaml
+      - SYNAPSE_SERVER_NAME=mydomain.com
+      - SYNAPSE_NO_TLS=true
+    volumes:
+      - synapse_data:/data
+    depends_on:
+      - synapse_db
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.synapse.entrypoints=web
+      - traefik.http.routers.synapse.rule=Host(`mydomain.com`)
+
+  element:
+    image: vectorim/element-web:v1.11.99
+    container_name: element
+    ports:
+      - "7071:80"
+    volumes:
+      - ./element-config.json:/app/config.json
+    environment:
+      - ELEMENT_BASE_URL=http://mydomain.com:8008
+
+volumes:
+  synapse_data:
+  synapse_db_data:
