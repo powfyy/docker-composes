@@ -1,17 +1,23 @@
 version: '3.8'
 
 services:
+
   traefik:
     image: traefik:v3.3.6
-    container_name: synapse_traefik
+    container_name: traefik
     command:
       - --api.insecure=true
       - --providers.docker=true
       - --providers.docker.exposedbydefault=false
       - --entrypoints.web.address=:80
+      - --entrypoints.federation.address=:8448
+      - --entrypoints.element.address=:7071
+      - --log.level=DEBUG
     ports:
-      - "8008:80"
+      - "80:80"
+      - "8448:8448"
       - "7070:8080"
+      - "7071:7071"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
 
@@ -39,18 +45,32 @@ services:
       - synapse_db
     labels:
       - traefik.enable=true
-      - traefik.http.routers.synapse.entrypoints=web
-      - traefik.http.routers.synapse.rule=Host(`mydomain.com`)
+      #- traefik.docker.network=traefik-net
+
+      - traefik.http.routers.synapse-web.entrypoints=web
+      - traefik.http.routers.synapse-web.rule=Host(`mydomain.com`)
+      - traefik.http.routers.synapse-web.service=synapse-web-svc
+      - traefik.http.services.synapse-web-svc.loadbalancer.server.port=8008
+
+      - traefik.http.routers.synapse-federation.entrypoints=federation
+      - traefik.http.routers.synapse-federation.rule=Host(`mydomain.com`)
+      - traefik.http.routers.synapse-federation.service=synapse-federation-svc
+      - traefik.http.services.synapse-federation-svc.loadbalancer.server.port=8448
 
   element:
     image: vectorim/element-web:v1.11.99
     container_name: element
-    ports:
-      - "7071:80"
+    labels:
+      - traefik.enable=true
+      #- traefik.docker.network=traefik-net
+      - traefik.http.routers.element-web.entrypoints=element
+      - traefik.http.routers.element-web.rule=Host(`mydomain.com`)
+      - traefik.http.routers.element-web.service=element-web-svc
+      - traefik.http.services.element-web-svc.loadbalancer.server.port=80
     volumes:
       - ./element-config.json:/app/config.json
     environment:
-      - ELEMENT_BASE_URL=http://mydomain.com:8008
+      - ELEMENT_BASE_URL=http://mydomain.com:80
 
 volumes:
   synapse_data:
