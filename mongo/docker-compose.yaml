@@ -6,10 +6,11 @@ services:
     ports:
       - "27017:27017"
     volumes:
-      - data:/data/db
+      - db_data:/data/db
+      - db_config_data:/data/configdb
     environment:
-      - MONGO_INITDB_ROOT_USERNAME=admin
-      - MONGO_INITDB_ROOT_PASSWORD=pass
+      - MONGO_INITDB_ROOT_USERNAME=sadmin
+      - MONGO_INITDB_ROOT_PASSWORD=sadmin
     networks:
       - mongo-network
 
@@ -17,11 +18,11 @@ services:
     image: mongo-express
     container_name: mongo-express
     ports:
-      - "7070:8081"
+      - "7080:8081"
     environment:
-      - ME_CONFIG_MONGODB_ADMINUSERNAME=admin
-      - ME_CONFIG_MONGODB_ADMINPASSWORD=pass
-      - ME_CONFIG_MONGODB_URL=mongodb://sadmin:sadmin@mongo-indexer:27017/
+      - ME_CONFIG_MONGODB_ADMINUSERNAME=sadmin
+      - ME_CONFIG_MONGODB_ADMINPASSWORD=sadmin
+      - ME_CONFIG_MONGODB_URL=mongodb://sadmin:sadmin@mongo:27017/
       - ME_CONFIG_BASICAUTH=false
     depends_on:
       - mongo
@@ -30,8 +31,9 @@ services:
 
 networks:
   mongo-network:
-    name: mongo-network
+    name: mongo
     driver: bridge
 
 volumes:
-  data: { }
+  db_data:
+  db_config_data:
